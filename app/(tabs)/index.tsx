@@ -1,98 +1,256 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  RefreshControl,
+} from "react-native";
+import React from "react";
+import { useAuth } from "../../context/AuthContext";
+import { useRouter } from "expo-router";
+import { Leaf, Plus, Target, User, History } from "lucide-react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const DashboardScreen = () => {
+  const router = useRouter();
+  const { user, predictions, getHistory } = useAuth();
+  const [refreshing, setRefreshing] = React.useState(false);
 
-export default function HomeScreen() {
+  const firstName = user?.name?.split(" ")[0] || "Farmer";
+  const recentPredictions = predictions.slice(0, 3);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await getHistory();
+    setRefreshing(false);
+  }, [getHistory]);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#16a34a"]}
+          />
+        }
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerWelcome}>Welcome, {firstName}!</Text>
+            <Text style={styles.headerSubtitle}>Ready for a new season?</Text>
+          </View>
+          <View style={styles.avatar}>
+            <User size={24} color="#166534" />
+          </View>
+        </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <TouchableOpacity
+          style={styles.primaryActionCard}
+          onPress={() => router.push("/predict")} // This will now correctly open the predict screen as a modal
+        >
+          <View style={styles.primaryActionIconContainer}>
+            <Target size={32} color="#fff" />
+          </View>
+          <Text style={styles.primaryActionTitle}>Soil Analysis Ready</Text>
+          <Text style={styles.primaryActionSubtitle}>
+            Get AI-powered crop recommendations based on your soil data.
+          </Text>
+          <View style={styles.primaryActionButton}>
+            <Plus size={20} color="#fff" />
+            <Text style={styles.primaryActionButtonText}>
+              Get New Crop Prediction
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Rest of the component... */}
+        <View style={styles.insightsGrid}>
+          <View style={styles.insightCard}>
+            <View
+              style={[
+                styles.insightIconContainer,
+                { backgroundColor: "#d1fae5" },
+              ]}
+            >
+              <Leaf size={20} color="#16a34a" />
+            </View>
+            <View>
+              <Text style={styles.insightLabel}>Last Crop</Text>
+              <Text style={styles.insightValue}>
+                {predictions[0]?.crop || "None"}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.insightCard}>
+            <View
+              style={[
+                styles.insightIconContainer,
+                { backgroundColor: "#e0e7ff" },
+              ]}
+            >
+              <History size={20} color="#4f46e5" />
+            </View>
+            <View>
+              <Text style={styles.insightLabel}>Total Predictions</Text>
+              <Text style={styles.insightValue}>{predictions.length}</Text>
+            </View>
+          </View>
+        </View>
+
+        {recentPredictions.length > 0 && (
+          <View style={styles.recentSection}>
+            <View style={styles.recentHeader}>
+              <Text style={styles.sectionTitle}>Recent Predictions</Text>
+              <TouchableOpacity onPress={() => router.push("/history")}>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.recentList}>
+              {recentPredictions.map((item) => (
+                <TouchableOpacity key={item.id} style={styles.recentItem}>
+                  <View style={styles.recentItemLeft}>
+                    <View style={styles.recentItemIconContainer}>
+                      <Leaf size={18} color="#fff" />
+                    </View>
+                    <View>
+                      <Text style={styles.recentItemCrop}>{item.crop}</Text>
+                      <Text style={styles.recentItemDate}>{item.date}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.recentItemRight}>
+                    <Text style={styles.recentItemConfidence}>
+                      {item.confidence}%
+                    </Text>
+                    <Text style={styles.recentItemLabel}>Confidence</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
-}
+};
 
+// --- Styles (no changes) ---
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  safeArea: { flex: 1, backgroundColor: "#f9fafb" },
+  container: { padding: 24 },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
   },
-  stepContainer: {
-    gap: 8,
+  headerWelcome: { fontSize: 24, fontWeight: "bold", color: "#1f2937" },
+  headerSubtitle: { fontSize: 16, color: "#6b7280" },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#e5e7eb",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  primaryActionCard: {
+    backgroundColor: "#166534",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  primaryActionIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  primaryActionTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  primaryActionSubtitle: {
+    fontSize: 14,
+    color: "#d1d5db",
+    textAlign: "center",
+    marginBottom: 20,
   },
+  primaryActionButton: {
+    backgroundColor: "#16a34a",
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  primaryActionButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  insightsGrid: { flexDirection: "row", gap: 16, marginBottom: 24 },
+  insightCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  insightIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  insightLabel: { fontSize: 12, color: "#6b7280" },
+  insightValue: { fontSize: 16, fontWeight: "bold", color: "#1f2937" },
+  recentSection: {},
+  recentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1f2937" },
+  viewAllText: { fontSize: 14, fontWeight: "600", color: "#16a34a" },
+  recentList: { gap: 12 },
+  recentItem: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  recentItemLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  recentItemIconContainer: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#22c55e",
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recentItemCrop: { fontSize: 16, fontWeight: "600", color: "#1f2937" },
+  recentItemDate: { fontSize: 12, color: "#6b7280" },
+  recentItemRight: { alignItems: "flex-end" },
+  recentItemConfidence: { fontSize: 16, fontWeight: "bold", color: "#16a34a" },
+  recentItemLabel: { fontSize: 12, color: "#6b7280" },
 });
+
+export default DashboardScreen;

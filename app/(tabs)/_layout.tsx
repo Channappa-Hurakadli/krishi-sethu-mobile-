@@ -1,35 +1,50 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Leaf, History, UserCircle } from 'lucide-react-native';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
+// This component defines the bottom tab navigator for the main part of your app.
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
+        headerShown: false, // Hides the header title for tab screens
+        tabBarActiveTintColor: '#16a34a', // A green color from your theme
+        tabBarInactiveTintColor: 'gray',
+        tabBarStyle: {
+          height: 60,
+          paddingBottom: 5,
+        }
       }}>
       <Tabs.Screen
-        name="index"
+        name="index" // This links to app/(tabs)/index.tsx
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Dashboard',
+          tabBarIcon: ({ color, focused }) => (
+            <Leaf color={color} size={focused ? 28 : 24} />
+          ),
         }}
       />
-      <Tabs.Screen
-        name="explore"
+      {/* We will create the history.tsx and profile.tsx files next */}
+      {/* <Tabs.Screen
+        name="history" 
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'History',
+          tabBarIcon: ({ color, focused }) => (
+            <History color={color} size={focused ? 28 : 24} />
+          ),
         }}
       />
+       <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <UserCircle color={color} size={focused ? 28 : 24} />
+          ),
+        }}
+      /> 
+      */}
     </Tabs>
   );
 }
+

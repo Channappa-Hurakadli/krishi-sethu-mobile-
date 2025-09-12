@@ -1,24 +1,46 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { AuthProvider, useAuth } from '../context/AuthContext';
+import { useEffect } from 'react';
+import { useRouter, useSegments } from 'expo-router';
+import SplashScreen from '../screens/SplashScreen';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+const RootLayoutNav = () => {
+  const { user, authIsLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
 
-export const unstable_settings = {
-  anchor: '(tabs)',
+  useEffect(() => {
+    if (authIsLoading) return; 
+    const inTabsGroup = segments[0] === '(tabs)';
+
+    if (user && !inTabsGroup) {
+      router.replace('/(tabs)');
+    } else if (!user && inTabsGroup) {
+      router.replace('/signin');
+    }
+  }, [user, authIsLoading, segments, router]);
+
+  if (authIsLoading) {
+    return <SplashScreen />;
+  }
+
+  return (
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="signin" options={{ headerShown: false, presentation: 'card' }} />
+      <Stack.Screen name="signup" options={{ headerShown: false, presentation: 'card' }} />
+      {/* --- THE FIX: Define predict and result as modals here --- */}
+      <Stack.Screen name="predict" options={{ presentation: 'modal', title: "New Prediction" }} />
+      <Stack.Screen name="result" options={{ presentation: 'modal', title: "Prediction Result" }} />
+    </Stack>
+  );
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
   );
 }
+
