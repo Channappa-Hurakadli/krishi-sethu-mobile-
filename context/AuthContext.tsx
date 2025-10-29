@@ -125,6 +125,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let locationResult = await Location.getCurrentPositionAsync({});
       setLocation(locationResult.coords);
       const API_KEY = 'bdcc754e794c6939b366dbdb9eb8deb9'; // Your key
+      console.log("Location:", locationResult.coords.latitude, locationResult.coords.longitude);
+
+      // ---- YOUR API KEY IS HERE ----
+      const API_KEY = 'WEATHER_API_KEY';
+
+      // --- BUG FIX: I REMOVED THE FAULTY IF STATEMENT ---
+      // We will now directly try to fetch.
+      
       const fetchURL = `https://api.openweathermap.org/data/2.5/weather?lat=${locationResult.coords.latitude}&lon=${locationResult.coords.longitude}&appid=${API_KEY}&units=metric`;
       const response = await fetch(fetchURL);
       if (!response.ok) throw new Error('Failed to fetch weather data.');
