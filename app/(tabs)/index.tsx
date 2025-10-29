@@ -5,16 +5,19 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
+  ActivityIndicator, // Import ActivityIndicator
 } from "react-native";
 import React from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "expo-router";
-import { Leaf, Plus, Target, User, History } from "lucide-react-native";
+// Import MapPin icon
+import { Leaf, Plus, Target, User, History, MapPin } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const DashboardScreen = () => {
   const router = useRouter();
-  const { user, predictions, getHistory } = useAuth();
+  // Get weatherData and isFetchingWeather from useAuth
+  const { user, predictions, getHistory, weatherData, isFetchingWeather } = useAuth();
   const [refreshing, setRefreshing] = React.useState(false);
 
   const firstName = user?.name?.split(" ")[0] || "Farmer";
@@ -23,8 +26,30 @@ const DashboardScreen = () => {
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     await getHistory();
+    // You could also add a weather re-fetch here if you want
     setRefreshing(false);
   }, [getHistory]);
+
+  // Helper component to render the location status
+  const renderLocationStatus = () => {
+    if (isFetchingWeather) {
+      return (
+        <View style={styles.locationContainer}>
+          <ActivityIndicator size="small" color="#6b7280" />
+          <Text style={styles.locationText}>Fetching location...</Text>
+        </View>
+      );
+    }
+    if (weatherData && weatherData.locationName) {
+      return (
+        <View style={styles.locationContainer}>
+          <MapPin size={14} color="#6b7280" />
+          <Text style={styles.locationText}>{weatherData.locationName}</Text>
+        </View>
+      );
+    }
+    return null; // Don't show anything if no data and not fetching
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -43,17 +68,22 @@ const DashboardScreen = () => {
           <View>
             <Text style={styles.headerWelcome}>Welcome, {firstName}!</Text>
             <Text style={styles.headerSubtitle}>Ready for a new season?</Text>
+            {/* --- ADDED LOCATION STATUS HERE --- */}
+            {renderLocationStatus()}
           </View>
           <View style={styles.avatar}>
             <User size={24} color="#166534" />
           </View>
         </View>
 
+        {/* ... (rest of your component remains the same) ... */}
+
         <TouchableOpacity
           style={styles.primaryActionCard}
-          onPress={() => router.push("/predict")} // This will now correctly open the predict screen as a modal
+          onPress={() => router.push("/predict")}
         >
-          <View style={styles.primaryActionIconContainer}>
+          {/* ... */}
+           <View style={styles.primaryActionIconContainer}>
             <Target size={32} color="#fff" />
           </View>
           <Text style={styles.primaryActionTitle}>Soil Analysis Ready</Text>
@@ -68,8 +98,8 @@ const DashboardScreen = () => {
           </View>
         </TouchableOpacity>
 
-        {/* Rest of the component... */}
         <View style={styles.insightsGrid}>
+          {/* ... */}
           <View style={styles.insightCard}>
             <View
               style={[
@@ -102,7 +132,8 @@ const DashboardScreen = () => {
           </View>
         </View>
 
-        {recentPredictions.length > 0 && (
+        {/* ... (recent predictions section remains the same) ... */}
+         {recentPredictions.length > 0 && (
           <View style={styles.recentSection}>
             <View style={styles.recentHeader}>
               <Text style={styles.sectionTitle}>Recent Predictions</Text>
@@ -133,23 +164,44 @@ const DashboardScreen = () => {
             </View>
           </View>
         )}
+
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-// --- Styles (no changes) ---
+// --- Styles (Add new styles) ---
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#f9fafb" },
   container: { padding: 24 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start", // Changed to flex-start
     marginBottom: 24,
   },
   headerWelcome: { fontSize: 24, fontWeight: "bold", color: "#1f2937" },
   headerSubtitle: { fontSize: 16, color: "#6b7280" },
+  
+  // --- NEW STYLES FOR LOCATION ---
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    backgroundColor: '#e5e7eb', // Light grey background
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start', // Make it only as wide as its content
+  },
+  locationText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#4b5563', // Darker grey text
+  },
+  // ---------------------------------
+
   avatar: {
     width: 48,
     height: 48,
@@ -157,7 +209,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#e5e7eb",
     justifyContent: "center",
     alignItems: "center",
+    marginLeft: 16, // Added margin in case text gets long
   },
+  
+  // ... (rest of the styles are unchanged) ...
   primaryActionCard: {
     backgroundColor: "#166534",
     borderRadius: 16,

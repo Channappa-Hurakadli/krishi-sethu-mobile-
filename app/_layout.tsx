@@ -5,7 +5,8 @@ import { useRouter, useSegments } from 'expo-router';
 import SplashScreen from '../screens/SplashScreen';
 
 const RootLayoutNav = () => {
-  const { user, authIsLoading } = useAuth();
+  // Get the new function from useAuth
+  const { user, authIsLoading, fetchLocationAndWeather } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -20,6 +21,15 @@ const RootLayoutNav = () => {
     }
   }, [user, authIsLoading, segments, router]);
 
+  // --- NEW EFFECT HOOK ---
+  // This separate effect will run whenever 'user' changes.
+  // If the user logs in (user object appears), it triggers the fetch.
+  useEffect(() => {
+    if (user) {
+      fetchLocationAndWeather();
+    }
+  }, [user]); // Dependency array ensures this runs when user logs in
+
   if (authIsLoading) {
     return <SplashScreen />;
   }
@@ -29,7 +39,6 @@ const RootLayoutNav = () => {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="signin" options={{ headerShown: false, presentation: 'card' }} />
       <Stack.Screen name="signup" options={{ headerShown: false, presentation: 'card' }} />
-      {/* --- THE FIX: Define predict and result as modals here --- */}
       <Stack.Screen name="predict" options={{ presentation: 'modal', title: "New Prediction" }} />
       <Stack.Screen name="result" options={{ presentation: 'modal', title: "Prediction Result" }} />
     </Stack>
@@ -43,4 +52,3 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
-

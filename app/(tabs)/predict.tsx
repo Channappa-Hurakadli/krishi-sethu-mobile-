@@ -1,12 +1,12 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import React, { useState } from 'react';
+// Import useEffect
+import React, { useState, useEffect } from 'react';
 import { useRouter, Stack } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Droplets, Thermometer, CloudRain, TestTube2, Target } from 'lucide-react-native';
 
-// Re-defining this interface here for type-safety inside this file.
-// This is good practice and helps TypeScript understand the data shape.
+// ... (PredictionData interface remains the same)
 interface PredictionData {
   id: string;
   crop: string;
@@ -39,20 +39,37 @@ const inputFields = [
 
 export default function PredictScreen() {
   const router = useRouter();
-  const { predictCrop, savePrediction, isLoading } = useAuth();
+  // Get weatherData from useAuth
+  const { predictCrop, savePrediction, isLoading, weatherData, isFetchingWeather } = useAuth();
+  
   const [formData, setFormData] = useState<FormData>({
     nitrogen: '', phosphorus: '', potassium: '', temperature: '',
     humidity: '', ph: '', rainfall: ''
   });
   const [error, setError] = useState('');
 
+  // --- NEW EFFECT HOOK ---
+  // This effect listens for changes to weatherData from the context
+  useEffect(() => {
+    if (weatherData) {
+      setFormData(prev => ({
+        ...prev,
+        temperature: String(weatherData.temperature || ''),
+        humidity: String(weatherData.humidity || ''),
+        rainfall: String(weatherData.rainfall || ''),
+      }));
+    }
+  }, [weatherData]); // Runs when weatherData is fetched
+
   const handleInputChange = (key: string, value: string) => {
+    // Only allow numbers and a single decimal point
     if (/^\d*\.?\d*$/.test(value)) {
       setFormData(prev => ({ ...prev, [key]: value }));
     }
   };
 
   const handlePrediction = async () => {
+    // ... (prediction logic remains the same)
     const missingField = inputFields.find(field => !formData[field.key]?.trim());
     if (missingField) {
       Alert.alert('Missing Information', `Please fill in the ${missingField.label} field.`);
@@ -67,14 +84,12 @@ export default function PredictScreen() {
       
       const result = await predictCrop(numericParams);
       
-      // --- FIX IS HERE ---
-      // We are casting numericParams to the specific type that PredictionData expects.
       const newPrediction: PredictionData = {
         id: result.id,
         crop: result.crop,
         confidence: result.confidence,
         date: new Date().toISOString().split('T')[0],
-        parameters: numericParams as PredictionData['parameters'] // Type Assertion
+        parameters: numericParams as PredictionData['parameters']
       };
 
       savePrediction(newPrediction);
@@ -89,6 +104,15 @@ export default function PredictScreen() {
     }
   };
 
+  // Helper function to show a placeholder or fetching indicator
+  const getPlaceholder = (key: string) => {
+    const field = inputFields.find(f => f.key === key);
+    if (isFetchingWeather && (key === 'temperature' || key === 'humidity' || key === 'rainfall')) {
+        return 'Fetching weather...';
+    }
+    return field?.placeholder;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ title: "New Prediction" }} />
@@ -98,31 +122,37 @@ export default function PredictScreen() {
             <Text style={styles.subtitle}>Enter your soil parameters to get a prediction.</Text>
         </View>
 
-        {inputFields.map(({ key, label, unit, icon: Icon, placeholder }) => (
-          <View style={styles.inputGroup} key={key}>
-            <Text style={styles.label}>{label} {unit && `(${unit})`}</Text>
-            <View style={styles.inputContainer}>
-              <Icon style={styles.inputIcon} size={20} color="#6b7280" />
-              <TextInput
-                style={styles.input}
-                value={formData[key]}
-                onChangeText={(text) => handleInputChange(key, text)}
-                placeholder={placeholder}
-                keyboardType="decimal-pad"
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-          </View>
-        ))}
+        {inputFields.map(({ key, label, unit, icon: Icon }) => {
+            const isWeatherField = key === 'temperature' || key === 'humidity' || key === 'rainfall';
+            return (
+              <View style={styles.inputGroup} key={key}>
+                <Text style={styles.label}>{label} {unit && `(${unit})`}</Text>
+                <View style={[styles.inputContainer, isFetchingWeather && isWeatherField && styles.inputDisabled]}>
+                  <Icon style={styles.inputIcon} size={20} color="#6b7280" />
+                  <TextInput
+                    style={styles.input}
+                    value={formData[key]}
+                    onChangeText={(text) => handleInputChange(key, text)}
+                    placeholder={getPlaceholder(key)} // Use helper for placeholder
+                    keyboardType="decimal-pad"
+                    placeholderTextColor="#9ca3af"
+                    editable={!(isFetchingWeather && isWeatherField)} // Disable field while fetching
+                  />
+                </View>
+              </View>
+            )
+        })}
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <TouchableOpacity
           onPress={handlePrediction}
-          disabled={isLoading}
-          style={[styles.predictButton, isLoading && styles.buttonDisabled]}
+          disabled={isLoading || isFetchingWeather} // Disable button while fetching weather
+          style={[styles.predictButton, (isLoading || isFetchingWeather) && styles.buttonDisabled]}
         >
           {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : isFetchingWeather ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <>
@@ -136,8 +166,9 @@ export default function PredictScreen() {
   );
 }
 
-// Styles remain the same...
+// Add/update styles
 const styles = StyleSheet.create({
+  // ... (all existing styles)
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
@@ -179,6 +210,10 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     height: 50,
   },
+  // NEW STYLE
+  inputDisabled: {
+    backgroundColor: '#f3f4f6', // Grey out background
+  },
   inputIcon: {
     marginHorizontal: 12,
   },
@@ -206,6 +241,7 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
       backgroundColor: '#166534',
+      opacity: 0.7, // Make it look disabled
   },
   predictButtonText: {
     color: '#fff',
@@ -213,4 +249,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-

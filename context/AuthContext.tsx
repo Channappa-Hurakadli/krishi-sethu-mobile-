@@ -1,6 +1,17 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { Alert } from 'react-native';
+import * as Location from 'expo-location';
 
-// --- DATA INTERFACES --- (No changes here)
+// --- UPDATED INTERFACE ---
+// We add locationName here
+interface WeatherData {
+  temperature: number;
+  humidity: number;
+  rainfall: number; // rainfall in mm (last 1hr)
+  locationName: string; // <-- FIX IS HERE
+}
+
+// --- DATA INTERFACES ---
 interface User {
   name: string;
   email: string;
@@ -21,7 +32,7 @@ interface PredictionData {
   };
 }
 
-// --- MOCK API --- (No changes here)
+// --- MOCK API --- (No changes)
 const mockAPI = {
   signIn: async (email: string, password: string): Promise<{ success: boolean; user?: User; message?: string }> => {
     return new Promise((resolve) => {
@@ -69,18 +80,21 @@ const mockAPI = {
   }
 };
 
-// --- CONTEXT DEFINITION --- (FIX APPLIED HERE)
+// --- CONTEXT DEFINITION --- (Updated)
 interface AuthContextType {
   signIn: (email: string, pass: string) => Promise<void>;
   signUp: (name: string, email: string, pass: string, confirmPass: string) => Promise<void>;
   logout: () => void;
   predictCrop: (params: any) => Promise<any>;
   savePrediction: (prediction: PredictionData) => void;
-  getHistory: () => Promise<void>; // Added this line
+  getHistory: () => Promise<void>;
+  fetchLocationAndWeather: () => Promise<void>;
   user: User | null;
   predictions: PredictionData[];
   isLoading: boolean;
   authIsLoading: boolean;
+  isFetchingWeather: boolean;
+  weatherData: WeatherData | null; // This now includes locationName
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -93,12 +107,16 @@ export function useAuth() {
   return context;
 }
 
-// --- PROVIDER COMPONENT --- (No changes needed here for this fix)
+// --- PROVIDER COMPONENT --- (Updated)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [predictions, setPredictions] = useState<PredictionData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [authIsLoading, setAuthIsLoading] = useState(true);
+
+  const [location, setLocation] = useState<Location.LocationObjectCoords | null>(null);
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [isFetchingWeather, setIsFetchingWeather] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -108,6 +126,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     loadUser();
   }, []);
+
+  // --- UPDATED FUNCTION ---
+  const fetchLocationAndWeather = async () => {
+    if (isFetchingWeather || weatherData) return;
+
+    console.log("--- Starting fetchLocationAndWeather ---");
+    setIsFetchingWeather(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Please enable location access in settings.');
+        setIsFetchingWeather(false);
+        return;
+      }
+
+      let locationResult = await Location.getCurrentPositionAsync({});
+      setLocation(locationResult.coords);
+      console.log("Location:", locationResult.coords.latitude, locationResult.coords.longitude);
+
+      // ---- YOUR API KEY IS HERE ----
+      const API_KEY = 'bdcc754e794c6939b366dbdb9eb8deb9';
+
+      // --- BUG FIX: I REMOVED THE FAULTY IF STATEMENT ---
+      // We will now directly try to fetch.
+      
+      const fetchURL = `https://api.openweathermap.org/data/2.5/weather?lat=${locationResult.coords.latitude}&lon=${locationResult.coords.longitude}&appid=${API_KEY}&units=metric`;
+      console.log("Fetching from URL:", fetchURL);
+
+      const response = await fetch(fetchURL);
+      
+      if (!response.ok) {
+        // This will tell you if the API key is wrong (e.g., 401 Unauthorized)
+        console.error("Fetch failed:", response.status, response.statusText);
+        throw new Error('Failed to fetch weather data.');
+      }
+      
+      const data = await response.json();
+      console.log("API Response Data:", data);
+      
+      // --- FIX: ADDED locationName and rainfall ---
+      const fetchedWeather: WeatherData = {
+        temperature: data.main.temp,
+        humidity: data.main.humidity,
+        // This correctly gets rainfall (or 0 if not raining)
+        rainfall: data.rain ? data.rain['1h'] || 0 : 0, 
+        // This correctly gets the city name
+        locationName: data.name || 'Unknown Location'
+      };
+
+      console.log("Setting weather data:", fetchedWeather);
+      setWeatherData(fetchedWeather);
+
+    } catch (error) {
+      console.error("Error in fetchLocationAndWeather:", error);
+      Alert.alert('Error', 'Could not fetch location or weather data.');
+    } finally {
+      setIsFetchingWeather(false);
+      console.log("--- Finished fetchLocationAndWeather ---");
+    }
+  };
 
 
   const getHistory = async () => {
@@ -141,6 +219,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout: () => {
       setUser(null);
       setPredictions([]);
+      setWeatherData(null); // Clear weather on logout
+      setLocation(null); // Clear location on logout
     },
     predictCrop: (params: any) => {
         setIsLoading(true);
@@ -154,6 +234,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     predictions,
     isLoading,
     authIsLoading,
+    fetchLocationAndWeather,
+    isFetchingWeather,
+    weatherData,
   };
 
   return (
@@ -162,4 +245,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
-
