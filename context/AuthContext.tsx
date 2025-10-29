@@ -146,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log("Location:", locationResult.coords.latitude, locationResult.coords.longitude);
 
       // ---- YOUR API KEY IS HERE ----
-      const API_KEY = 'bdcc754e794c6939b366dbdb9eb8deb9';
+      const API_KEY = 'WEATHER_API_KEY';
 
       // --- BUG FIX: I REMOVED THE FAULTY IF STATEMENT ---
       // We will now directly try to fetch.
