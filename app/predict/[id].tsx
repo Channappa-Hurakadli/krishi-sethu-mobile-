@@ -2,26 +2,25 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import React from 'react';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Droplets, Thermometer, CloudRain, TestTube2 as TestTube, Leaf } from 'lucide-react-native';
+import { Droplets, Thermometer, CloudRain, TestTube2 as TestTube, Leaf, Sprout, Image as ImageIcon } from 'lucide-react-native';
 
-// This is the shape of the data we expect to receive
+// --- UPDATED INTERFACE ---
 interface PredictionData {
   id: string;
   crop: string;
   confidence: number;
   date: string;
   parameters: {
-    nitrogen: number;
-    phosphorus: number;
-    potassium: number;
     temperature: number;
     humidity: number;
     ph: number;
     rainfall: number;
+    soilName?: string;
+    soilImageUri?: string;
   };
 }
 
-// A helper component for displaying each parameter
+// Helper component
 const DetailRow = ({ icon: Icon, label, value, unit }: { icon: React.ElementType, label: string, value: string | number, unit: string }) => (
   <View style={styles.detailRow}>
     <View style={styles.detailLeft}>
@@ -36,8 +35,8 @@ export default function PredictionDetailScreen() {
   const params = useLocalSearchParams();
   const { prediction: predictionString } = params;
 
-  // If no prediction data is passed, show an error message
   if (!predictionString || typeof predictionString !== 'string') {
+    // ... (error UI remains the same)
     return (
       <SafeAreaView style={styles.container}>
         <Text>No prediction data found.</Text>
@@ -45,15 +44,14 @@ export default function PredictionDetailScreen() {
     );
   }
 
-  // Parse the JSON string back into an object
   const prediction: PredictionData = JSON.parse(predictionString);
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Configure the header for this screen */}
       <Stack.Screen options={{ title: 'Prediction Details', headerBackTitle: 'Back' }} />
       
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* --- Header remains the same --- */}
         <View style={styles.header}>
             <View style={styles.headerIconContainer}>
                 <Leaf size={48} color="#fff" />
@@ -63,21 +61,30 @@ export default function PredictionDetailScreen() {
             <Text style={styles.dateText}>{new Date(prediction.date).toDateString()}</Text>
         </View>
 
+        {/* --- UPDATED Details Card --- */}
         <View style={styles.detailsCard}>
             <Text style={styles.cardTitle}>Soil & Weather Conditions</Text>
-            <DetailRow icon={TestTube} label="Nitrogen (N)" value={prediction.parameters.nitrogen} unit="kg/ha" />
-            <DetailRow icon={TestTube} label="Phosphorus (P)" value={prediction.parameters.phosphorus} unit="kg/ha" />
-            <DetailRow icon={TestTube} label="Potassium (K)" value={prediction.parameters.potassium} unit="kg/ha" />
+            {/* N, P, K removed */}
             <DetailRow icon={TestTube} label="Soil pH" value={prediction.parameters.ph} unit="" />
             <DetailRow icon={Thermometer} label="Temperature" value={prediction.parameters.temperature} unit="°C" />
             <DetailRow icon={Droplets} label="Humidity" value={prediction.parameters.humidity} unit="%" />
             <DetailRow icon={CloudRain} label="Rainfall" value={prediction.parameters.rainfall} unit="mm" />
+            
+            {/* Conditionally show soil name */}
+            {prediction.parameters.soilName && (
+                <DetailRow icon={Sprout} label="Soil Name" value={prediction.parameters.soilName} unit="" />
+            )}
+            {/* Conditionally show soil image status */}
+            {prediction.parameters.soilImageUri && (
+                <DetailRow icon={ImageIcon} label="Soil Image" value="Provided" unit="" />
+            )}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// --- Styles (no changes) ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -157,4 +164,3 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
 });
-

@@ -4,20 +4,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Leaf, CheckCircle, Target } from 'lucide-react-native';
 
-// This defines the structure of the prediction data we expect to receive
+// --- UPDATED INTERFACE ---
 type PredictionData = {
     id: string;
     crop: string;
     confidence: number;
     date: string;
     parameters: {
-        nitrogen: number;
-        phosphorus: number;
-        potassium: number;
         temperature: number;
         humidity: number;
         ph: number;
         rainfall: number;
+        soilName?: string;
+        soilImageUri?: string;
     };
 };
 
@@ -33,10 +32,10 @@ const ResultScreen = () => {
     }
   } catch (e) {
     console.error("Failed to parse prediction data:", e);
-    // Handle error, maybe show a message or navigate back
   }
 
   if (!prediction) {
+    // ... (error UI remains the same)
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
@@ -49,18 +48,27 @@ const ResultScreen = () => {
     );
   }
 
+  // --- UPDATED PARAMETER LIST ---
   const parameterItems = [
-      { label: 'Nitrogen', value: `${prediction.parameters.nitrogen} kg/ha` },
-      { label: 'Phosphorus', value: `${prediction.parameters.phosphorus} kg/ha` },
-      { label: 'Potassium', value: `${prediction.parameters.potassium} kg/ha` },
       { label: 'Temperature', value: `${prediction.parameters.temperature}°C` },
       { label: 'Humidity', value: `${prediction.parameters.humidity}%` },
-      { label: 'pH', value: `${prediction.parameters.ph}` },
+      { label: 'Soil pH', value: `${prediction.parameters.ph}` },
+      { label: 'Rainfall', value: `${prediction.parameters.rainfall} mm` },
   ];
+
+  // Conditionally add soil name if it exists
+  if (prediction.parameters.soilName) {
+      parameterItems.push({ label: 'Soil Name', value: prediction.parameters.soilName });
+  }
+  // Conditionally add image status if it exists
+  if (prediction.parameters.soilImageUri) {
+      parameterItems.push({ label: 'Soil Image', value: 'Image Provided' });
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
+        {/* --- Header remains the same --- */}
         <View style={styles.header}>
             <View style={styles.headerIconContainer}>
                 <CheckCircle size={32} color="#fff" />
@@ -69,6 +77,7 @@ const ResultScreen = () => {
             <Text style={styles.headerSubtitle}>AI analysis completed successfully.</Text>
         </View>
 
+        {/* --- Result Card remains the same --- */}
         <View style={styles.resultCard}>
             <Text style={styles.resultCrop}>{prediction.crop}</Text>
             <View style={styles.confidenceCircle}>
@@ -77,11 +86,13 @@ const ResultScreen = () => {
             </View>
         </View>
 
+        {/* --- Details Card --- */}
         <View style={styles.detailsCard}>
             <Text style={styles.detailsTitle}>Input Parameters</Text>
-            <View style={styles.grid}>
+            {/* UPDATED: Changed grid to a list view for flexibility */}
+            <View style={styles.list}>
                 {parameterItems.map((item) => (
-                    <View key={item.label} style={styles.gridItem}>
+                    <View key={item.label} style={styles.listItem}>
                         <Text style={styles.paramLabel}>{item.label}</Text>
                         <Text style={styles.paramValue}>{item.value}</Text>
                     </View>
@@ -89,6 +100,7 @@ const ResultScreen = () => {
             </View>
         </View>
 
+        {/* --- Buttons remain the same --- */}
         <TouchableOpacity style={styles.button} onPress={() => router.replace('/(tabs)')}>
           <Leaf size={20} color="#fff" />
           <Text style={styles.buttonText}>Done</Text>
@@ -102,6 +114,7 @@ const ResultScreen = () => {
   );
 };
 
+// --- UPDATED STYLES ---
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
@@ -110,6 +123,7 @@ const styles = StyleSheet.create({
     container: {
         padding: 24,
     },
+    // ... header styles ...
     header: {
         backgroundColor: '#22c55e',
         borderRadius: 16,
@@ -136,6 +150,7 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.9)',
         marginTop: 4,
     },
+    // ... result card styles ...
     resultCard: {
         backgroundColor: '#fff',
         borderRadius: 16,
@@ -180,18 +195,19 @@ const styles = StyleSheet.create({
         color: '#1f2937',
         marginBottom: 16,
     },
-    grid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginHorizontal: -8,
+    // --- UPDATED: Grid to List styles ---
+    list: {
+        flexDirection: 'column',
     },
-    gridItem: {
-        width: '50%',
-        padding: 8,
-        marginBottom: 8,
+    listItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f3f4f6',
     },
     paramLabel: {
-        fontSize: 14,
+        fontSize: 16,
         color: '#6b7280',
     },
     paramValue: {
@@ -199,6 +215,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#1f2937',
     },
+    // --- -------------------------- ---
     button: {
         backgroundColor: '#16a34a',
         paddingVertical: 16,
