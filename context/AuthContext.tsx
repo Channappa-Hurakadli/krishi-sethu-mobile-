@@ -1,32 +1,29 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { Alert } from 'react-native';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // <-- Import AsyncStorage
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- v VERY IMPORTANT v ---
 // This is the URL of your backend.
 // Replace 'YOUR_BACKEND_IP' with your computer's local IP address.
-// DO NOT use 'localhost' if you are testing on a real device.
 const API_URL = 'http://localhost:5000/api';
 // --- ^ VERY IMPORTANT ^ ---
 
-
-// --- INTERFACES (Matching our new backend) ---
+// --- INTERFACES ---
 interface WeatherData {
   temperature: number;
   humidity: number;
   rainfall: number;
   locationName: string;
 }
-
 interface User {
   _id: string; // From MongoDB
   name: string;
   email: string;
 }
-
+// --- UPDATED: PredictionData (no soilImageUri) ---
 interface PredictionData {
-  id: string; // This will be _id from MongoDB
+  id: string;
   crop: string;
   confidence: number;
   date: string;
@@ -36,18 +33,18 @@ interface PredictionData {
     ph: number;
     rainfall: number;
     soilName?: string;
-    soilImageUri?: string;
+    // soilImageUri removed
   };
 }
 
-// Params for creating a prediction
+// --- UPDATED: PredictionParams (no soilImageUri) ---
 interface PredictionParams {
     temperature: number;
     humidity: number;
     ph: number;
     rainfall: number;
     soilName?: string;
-    soilImageUri?: string;
+    // soilImageUri removed
 }
 
 // Context Definition
@@ -55,14 +52,14 @@ interface AuthContextType {
   signIn: (email: string, pass: string) => Promise<void>;
   signUp: (name: string, email: string, pass: string) => Promise<void>;
   logout: () => void;
-  predictCrop: (params: PredictionParams) => Promise<PredictionData>; // Now returns the created prediction
-  savePrediction: (prediction: PredictionData) => void; // We keep this to update UI instantly
+  predictCrop: (params: PredictionParams) => Promise<PredictionData>;
+  savePrediction: (prediction: PredictionData) => void;
   getHistory: () => Promise<void>;
   fetchLocationAndWeather: () => Promise<void>;
   user: User | null;
   predictions: PredictionData[];
-  isLoading: boolean; // For general API calls (like predict)
-  authIsLoading: boolean; // For initial auth load
+  isLoading: boolean;
+  authIsLoading: boolean;
   isFetchingWeather: boolean;
   weatherData: WeatherData | null;
 }
@@ -77,19 +74,18 @@ export function useAuth() {
   return context;
 }
 
-// --- PROVIDER COMPONENT (Fully Integrated) ---
+// --- PROVIDER COMPONENT ---
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null); // State to hold the auth token
+  const [token, setToken] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<PredictionData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [authIsLoading, setAuthIsLoading] = useState(true); // Start as true
-
+  const [authIsLoading, setAuthIsLoading] = useState(true);
   const [location, setLocation] = useState<Location.LocationObjectCoords | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
 
-  // --- NEW: Load user from storage on app start ---
+  // useEffect loadUser
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -98,132 +94,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { user, token } = JSON.parse(storedUserData);
           setUser(user);
           setToken(token);
-          // Manually set the history (getHistory will be called by dashboard)
-          // We set the token so getHistory() will work when it's called
+          await getHistory(token); 
         }
-      } catch (e) {
-        console.error("Failed to load user from storage", e);
-      } finally {
-        setAuthIsLoading(false); // We're done loading, show the app
-      }
+      } catch (e) { console.error("Failed to load user", e); }
+      finally { setAuthIsLoading(false); }
     }
     loadUser();
   }, []);
   
-  // --- fetchLocationAndWeather (No changes) ---
+  // fetchLocationAndWeather
   const fetchLocationAndWeather = async () => {
-    // ... (This function is identical to my previous response, no changes needed)
-    if (isFetchingWeather || weatherData) return;
+     if (isFetchingWeather || weatherData) return;
     setIsFetchingWeather(true);
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Please enable location access in settings.');
-        setIsFetchingWeather(false);
-        return;
-      }
-      let locationResult = await Location.getCurrentPositionAsync({});
-      setLocation(locationResult.coords);
+      if (status !== 'granted') { Alert.alert('Permission Denied', '...'); setIsFetchingWeather(false); return; }
+      let loc = await Location.getCurrentPositionAsync({}); setLocation(loc.coords);
       const API_KEY = 'bdcc754e794c6939b366dbdb9eb8deb9'; // Your key
-      console.log("Location:", locationResult.coords.latitude, locationResult.coords.longitude);
-
-      // ---- YOUR API KEY IS HERE ----
-      const API_KEY = 'WEATHER_API_KEY';
-
-      // --- BUG FIX: I REMOVED THE FAULTY IF STATEMENT ---
-      // We will now directly try to fetch.
-      
-      const fetchURL = `https://api.openweathermap.org/data/2.5/weather?lat=${locationResult.coords.latitude}&lon=${locationResult.coords.longitude}&appid=${API_KEY}&units=metric`;
-      const response = await fetch(fetchURL);
-      if (!response.ok) throw new Error('Failed to fetch weather data.');
-      const data = await response.json();
-      const fetchedWeather: WeatherData = {
-        temperature: data.main.temp,
-        humidity: data.main.humidity,
-        rainfall: data.rain ? data.rain['1h'] || 0 : 0, 
-        locationName: data.name || 'Unknown Location'
-      };
-      setWeatherData(fetchedWeather);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsFetchingWeather(false);
-    }
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${loc.coords.latitude}&lon=${loc.coords.longitude}&appid=${API_KEY}&units=metric`;
+      const res = await fetch(url); if (!res.ok) throw new Error('Weather fetch failed.');
+      const data = await res.json();
+      setWeatherData({ temperature: data.main.temp, humidity: data.main.humidity, rainfall: data.rain ? data.rain['1h'] || 0 : 0, locationName: data.name || 'Unknown'});
+    } catch (error) { console.error(error); }
+    finally { setIsFetchingWeather(false); }
   };
   
-  // --- NEW: getHistory (Integrated) ---
-  const getHistory = async () => {
-    if (!token) return; // Don't fetch if no token
+  // getHistory
+  const getHistory = async (loadedToken?: string | null) => {
+    const activeToken = token || loadedToken;
+    if (!activeToken) return;
     try {
-        const response = await fetch(`${API_URL}/predictions/history`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-        });
-        if (!response.ok) {
-             if(response.status === 401) logout(); // Bad token, log out
-             throw new Error('Failed to fetch history');
-        }
-        const data: PredictionData[] = await response.json();
-        setPredictions(data);
-    } catch (error) {
-        console.error(error);
-    }
+      const res = await fetch(`${API_URL}/predictions/history`, { headers: { 'Authorization': `Bearer ${activeToken}` }});
+      if (!res.ok) { if(res.status === 401) logout(); throw new Error('History fetch failed'); }
+      const data = await res.json(); setPredictions(data);
+    } catch (error) { console.error(error); }
   };
-
-  // --- NEW: signIn (Integrated) ---
+  
+  // signIn
   const signIn = async (email: string, pass: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pass }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-      
+      const res = await fetch(`${API_URL}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pass }) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.message || 'Login failed');
       const userData = { user: { _id: data._id, name: data.name, email: data.email }, token: data.token };
       await AsyncStorage.setItem('userData', JSON.stringify(userData));
-      setUser(userData.user);
-      setToken(userData.token);
-      await getHistory(); // Fetch history after logging in
-    } catch (error: any) {
-      Alert.alert('Login Failed', error.message);
-    } finally {
-      setIsLoading(false);
-    }
+      setUser(userData.user); setToken(userData.token); await getHistory(userData.token);
+    } catch (error: any) { Alert.alert('Login Failed', error.message); }
+    finally { setIsLoading(false); }
   };
-
-  // --- NEW: signUp (Integrated) ---
+  
+  // signUp
   const signUp = async (name: string, email: string, pass: string) => {
-    setIsLoading(true);
+     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password: pass }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Sign up failed');
-      }
-      
+      const res = await fetch(`${API_URL}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password: pass }) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.message || 'Sign up failed');
       const userData = { user: { _id: data._id, name: data.name, email: data.email }, token: data.token };
       await AsyncStorage.setItem('userData', JSON.stringify(userData));
-      setUser(userData.user);
-      setToken(userData.token);
-      setPredictions([]); // New user, no predictions
-    } catch (error: any) {
-      Alert.alert('Sign Up Failed', error.message);
-    } finally {
-      setIsLoading(false);
-    }
+      setUser(userData.user); setToken(userData.token); await getHistory(userData.token);
+    } catch (error: any) { Alert.alert('Sign Up Failed', error.message); }
+    finally { setIsLoading(false); }
   };
 
-  // --- NEW: logout (Integrated) ---
+  // logout
   const logout = async () => {
     await AsyncStorage.removeItem('userData');
     setUser(null);
@@ -231,74 +164,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPredictions([]);
     setWeatherData(null);
   };
-  
-  // --- NEW: predictCrop (Integrated) ---
+
+
+  // --- UPDATED: predictCrop (Switched back to JSON) ---
   const predictCrop = async (params: PredictionParams): Promise<PredictionData> => {
     if (!token) throw new Error('Not authorized. Please log in.');
     setIsLoading(true);
     
-    // 1. Create FormData
-    const formData = new FormData();
-    
-    // 2. Append all text fields
-    formData.append('ph', String(params.ph));
-    formData.append('temperature', String(params.temperature));
-    formData.append('humidity', String(params.humidity));
-    formData.append('rainfall', String(params.rainfall));
-    if (params.soilName) {
-      formData.append('soilName', params.soilName);
-    }
-
-    // 3. Append the image file
-    if (params.soilImageUri) {
-        const filename = params.soilImageUri.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename!);
-        const type = match ? `image/${match[1]}` : `image`;
-
-        // The 'as any' is a small hack to make TypeScript happy with React Native's file format
-        formData.append('soilImage', { uri: params.soilImageUri, name: filename, type } as any);
-    }
+    // We are no longer sending FormData, just plain JSON.
+    console.log("AuthContext: Sending this JSON payload:", params);
     
     try {
       const response = await fetch(`${API_URL}/predictions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          // 'Content-Type': 'multipart/form-data' <-- DO NOT SET THIS.
-          // fetch() sets it automatically with the correct boundary.
+          // --- FIX: We MUST send application/json ---
+          'Content-Type': 'application/json',
         },
-        body: formData,
+        // --- FIX: Send 'params' directly as a JSON string ---
+        body: JSON.stringify(params), 
       });
 
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || 'Prediction failed');
       }
-      
-      return data; // This is the new PredictionData object
-      
+      return data;
     } catch (error) {
-        console.error(error);
-        throw error; // Re-throw to be caught by predict.tsx
+        console.error("Error in predictCrop:", error);
+        throw error;
     } finally {
       setIsLoading(false);
     }
   };
+  // --- END OF FIX ---
   
-  // --- This function is now just for local UI state updates ---
   const savePrediction = (prediction: PredictionData) => {
-    // Add new prediction to the top of the list for a snappy UI
     setPredictions(prev => [prediction, ...prev]);
   };
 
-
   const value: AuthContextType = {
     signIn,
-    signUp: (name: string, email: string, pass: string, confirmPass?: string) => signUp(name, email, pass), // Adapt to old frontend call
+    signUp: (name: string, email: string, pass: string, confirmPass?: string) => signUp(name, email, pass),
     logout,
     predictCrop,
     savePrediction,
-    getHistory,
+    getHistory: () => getHistory(),
     fetchLocationAndWeather,
     user,
     predictions,

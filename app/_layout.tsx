@@ -5,8 +5,7 @@ import { useRouter, useSegments } from 'expo-router';
 import SplashScreen from '../screens/SplashScreen';
 
 const RootLayoutNav = () => {
-  // Get the new function from useAuth
-  const { user, authIsLoading, fetchLocationAndWeather } = useAuth();
+  const { user, authIsLoading } = useAuth(); // Removed fetchLocationAndWeather
   const segments = useSegments();
   const router = useRouter();
 
@@ -21,14 +20,8 @@ const RootLayoutNav = () => {
     }
   }, [user, authIsLoading, segments, router]);
 
-  // --- NEW EFFECT HOOK ---
-  // This separate effect will run whenever 'user' changes.
-  // If the user logs in (user object appears), it triggers the fetch.
-  useEffect(() => {
-    if (user) {
-      fetchLocationAndWeather();
-    }
-  }, [user]); // Dependency array ensures this runs when user logs in
+  // We remove the useEffect for fetchLocationAndWeather from here
+  // It's now handled by the dashboard screen (index.tsx)
 
   if (authIsLoading) {
     return <SplashScreen />;
@@ -41,6 +34,16 @@ const RootLayoutNav = () => {
       <Stack.Screen name="signup" options={{ headerShown: false, presentation: 'card' }} />
       <Stack.Screen name="predict" options={{ presentation: 'modal', title: "New Prediction" }} />
       <Stack.Screen name="result" options={{ presentation: 'modal', title: "Prediction Result" }} />
+      
+      {/* --- ADD THIS LINE FOR THE NEW MODAL --- */}
+      <Stack.Screen 
+        name="predictionModal" 
+        options={{ 
+          presentation: 'transparentModal', // This makes it a pop-up
+          headerShown: false 
+        }} 
+      />
+      {/* ------------------------------------- */}
     </Stack>
   );
 };

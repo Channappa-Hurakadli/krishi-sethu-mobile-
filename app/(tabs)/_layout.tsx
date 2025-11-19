@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Leaf, History, UserCircle } from 'lucide-react-native';
+// Import all the icons we need
+import { Leaf, History, UserCircle, PlusSquare, CheckSquare } from 'lucide-react-native';
 
 // This component defines the bottom tab navigator for the main part of your app.
 export default function TabLayout() {
@@ -24,9 +25,8 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* We will create the history.tsx and profile.tsx files next */}
-      {/* <Tabs.Screen
-        name="history" 
+      <Tabs.Screen
+        name="history" // This links to app/(tabs)/history.tsx
         options={{
           title: 'History',
           tabBarIcon: ({ color, focused }) => (
@@ -34,8 +34,50 @@ export default function TabLayout() {
           ),
         }}
       />
+      
+      {/* --- FIX: Added "New Prediction" Tab --- */}
+      <Tabs.Screen
+        name="predict" // This links to app/(tabs)/predict.tsx
+        options={{
+          title: 'New Prediction',
+          tabBarIcon: ({ color, focused }) => (
+            <PlusSquare color={color} size={focused ? 28 : 24} />
+          ),
+        }}
+      />
+
+      {/* --- FIX: Added "Results" Tab --- */}
+      <Tabs.Screen
+        name="result" // This links to app/(tabs)/result.tsx
+        options={{
+          title: 'Results',
+          tabBarIcon: ({ color, focused }) => (
+            <CheckSquare color={color} size={focused ? 28 : 24} />
+          ),
+          // --- Hides this tab from the bar ---
+          // A "Results" page doesn't make sense to show all the time
+          // It only appears AFTER a prediction.
+          // This href: null hides it from the tab bar.
+          href: null, 
+        }}
+      />
+      <Tabs.Screen
+        name="predictionModal" // This links to app/(tabs)/result.tsx
+        options={{
+          title: 'Results',
+          tabBarIcon: ({ color, focused }) => (
+            <CheckSquare color={color} size={focused ? 28 : 24} />
+          ),
+          // --- Hides this tab from the bar ---
+          // A "Results" page doesn't make sense to show all the time
+          // It only appears AFTER a prediction.
+          // This href: null hides it from the tab bar.
+          href: null, 
+        }}
+      />
+       
        <Tabs.Screen
-        name="profile"
+        name="profile" // This links to app/(tabs)/profile.tsx
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
@@ -43,8 +85,6 @@ export default function TabLayout() {
           ),
         }}
       /> 
-      */}
     </Tabs>
   );
 }
-

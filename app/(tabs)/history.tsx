@@ -1,12 +1,38 @@
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import React from 'react';
+import React, { useCallback } from 'react'; // Import useCallback
 import { useAuth } from '../../context/AuthContext';
 import { Leaf, Calendar, TrendingUp, History as HistoryIcon } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useFocusEffect } from 'expo-router'; // <-- Import useRouter and useFocusEffect
+
+// Define the PredictionData type here to match AuthContext
+interface PredictionData {
+  id: string;
+  crop: string;
+  confidence: number;
+  date: string;
+  parameters: {
+    temperature: number;
+    humidity: number;
+    ph: number;
+    rainfall: number;
+    soilName?: string;
+    soilImageUri?: string;
+  };
+}
 
 const HistoryScreen = () => {
   const { predictions, getHistory } = useAuth();
+  const router = useRouter(); // <-- Initialize router
   const [refreshing, setRefreshing] = React.useState(false);
+
+  // --- FIX 1 (Persistence) ---
+  // Fetch history every time this tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      getHistory();
+    }, [getHistory])
+  );
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -14,8 +40,17 @@ const HistoryScreen = () => {
     setRefreshing(false);
   }, [getHistory]);
 
-  const renderItem = ({ item }: { item: typeof predictions[0] }) => (
-    <TouchableOpacity style={styles.historyItem}>
+  // --- FIX 2 (Clickable) ---
+  const handleItemPress = (item: PredictionData) => {
+    // Navigate to the new modal, passing the item data
+    router.push({
+      pathname: '/predictionModal',
+      params: { prediction: JSON.stringify(item) }
+    });
+  };
+
+  const renderItem = ({ item }: { item: PredictionData }) => (
+    <TouchableOpacity style={styles.historyItem} onPress={() => handleItemPress(item)}>
       <View style={styles.itemLeft}>
         <View style={styles.iconContainer}>
           <Leaf color="#fff" size={24} />
@@ -24,12 +59,12 @@ const HistoryScreen = () => {
           <Text style={styles.cropName}>{item.crop}</Text>
           <View style={styles.dateContainer}>
             <Calendar color="#6b7280" size={14} />
-            <Text style={styles.dateText}>{item.date}</Text>
+            <Text style={styles.dateText}>{new Date(item.date).toLocaleDateString()}</Text>
           </View>
         </View>
       </View>
       <View style={styles.itemRight}>
-        <Text style={styles.confidenceText}>{item.confidence}%</Text>
+        <Text style={styles.confidenceText}>{item.confidence.toFixed(1)}%</Text>
         <Text style={styles.confidenceLabel}>Confidence</Text>
       </View>
     </TouchableOpacity>
@@ -61,6 +96,7 @@ const HistoryScreen = () => {
   );
 };
 
+// ... (styles remain the same) ...
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -162,5 +198,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
 
 export default HistoryScreen;

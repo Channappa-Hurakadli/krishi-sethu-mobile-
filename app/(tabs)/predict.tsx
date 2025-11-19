@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, Stack } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Droplets, Thermometer, CloudRain, TestTube2, Target, Camera, Image as ImageIcon, X, Sprout } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
+// Removed Camera, ImageIcon, X
+import { Droplets, Thermometer, CloudRain, TestTube2, Target, Sprout } from 'lucide-react-native';
+// Removed * as ImagePicker
 
-// --- UPDATED INTERFACE (matches AuthContext) ---
+// Interface (Unchanged)
 interface PredictionData {
   id: string;
   crop: string;
@@ -18,7 +19,6 @@ interface PredictionData {
     ph: number;
     rainfall: number;
     soilName?: string;
-    soilImageUri?: string;
   };
 }
 
@@ -35,23 +35,21 @@ type FormData = {
 const inputFields = [
   { key: 'temperature', label: 'Temperature', unit: '°C', icon: Thermometer, placeholder: 'e.g., 25' },
   { key: 'humidity', label: 'Humidity', unit: '%', icon: Droplets, placeholder: 'e.g., 80' },
-  { key: 'ph', label: 'Soil pH (Otptional)', unit: '', icon: TestTube2, placeholder: 'e.g., 6.5' },
+  { key: 'ph', label: 'Soil pH', unit: '', icon: TestTube2, placeholder: 'e.g., 6.5' },
   { key: 'rainfall', label: 'Rainfall', unit: 'mm', icon: CloudRain, placeholder: 'e.g., 120' },
-  { key: 'soilName', label: 'Soil Name (Optional)', unit: '', icon: Sprout, placeholder: 'e.g., Alluvial Soil' },
+  { key: 'soilName', label: 'Soil Name', unit: '', icon: Sprout, placeholder: 'e.g., Alluvial Soil' },
 ];
 
 export default function PredictScreen() {
   const router = useRouter();
   const { predictCrop, savePrediction, isLoading, weatherData, isFetchingWeather } = useAuth();
   
-  // --- UPDATED STATE ---
   const [formData, setFormData] = useState<FormData>({
     temperature: '', humidity: '', ph: '', rainfall: '', soilName: ''
   });
-  const [soilImage, setSoilImage] = useState<string | null>(null); // For image URI
   const [error, setError] = useState('');
 
-  // Auto-fill weather data
+  // Auto-fill weather data (Unchanged)
   useEffect(() => {
     if (weatherData) {
       setFormData(prev => ({
@@ -63,97 +61,64 @@ export default function PredictScreen() {
     }
   }, [weatherData]);
 
+  // Handle input change (Unchanged)
   const handleInputChange = (key: string, value: string) => {
-    // Allow non-numeric for soilName
     if (key === 'soilName') {
       setFormData(prev => ({ ...prev, [key]: value }));
-    } else if (/^\d*\.?\d*$/.test(value)) { // Only numbers/decimal for others
+    } else if (/^\d*\.?\d*$/.test(value)) {
       setFormData(prev => ({ ...prev, [key]: value }));
     }
   };
 
-  // --- NEW IMAGE PICKER FUNCTIONS ---
-  const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
-
-    if (!result.canceled) {
-      setSoilImage(result.assets[0].uri);
-    }
-  };
-
-  const takePhoto = async () => {
-    // Request camera permissions
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Please enable camera access in your settings.');
-      return;
-    }
-
-    let result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
-
-    if (!result.canceled) {
-      setSoilImage(result.assets[0].uri);
-    }
-  };
-  
   // --- UPDATED PREDICTION HANDLER ---
   const handlePrediction = async () => {
-    // ph is the only manually required numeric field
+    // Validation (Unchanged)
     if (!formData.ph.trim()) {
       Alert.alert('Missing Information', `Please fill in the Soil pH field.`);
       return;
     }
-    // At least one soil identifier must be provided
-    if (!formData.soilName.trim() && !soilImage) {
-        Alert.alert('Missing Information', 'Please provide a Soil Name or Soil Image.');
-        return;
+    if (!formData.soilName.trim()) {
+      Alert.alert('Missing Information', 'Please provide a Soil Name.');
+      return;
     }
     setError('');
 
     try {
-      // Collect all parameters
+      // Collect parameters (Unchanged)
       const params = {
         temperature: parseFloat(formData.temperature) || 0,
         humidity: parseFloat(formData.humidity) || 0,
         ph: parseFloat(formData.ph),
         rainfall: parseFloat(formData.rainfall) || 0,
-        soilName: formData.soilName.trim() || undefined,
-        soilImageUri: soilImage || undefined,
+        soilName: formData.soilName.trim(),
       };
       
-      const result = await predictCrop(params);
+      const newPrediction = await predictCrop(params);
       
-      const newPrediction: PredictionData = {
-        id: result.id,
-        crop: result.crop,
-        confidence: result.confidence,
-        date: new Date().toISOString().split('T')[0],
-        parameters: params // Pass the whole params object
-      };
-
       savePrediction(newPrediction);
+      
+      // --- THIS IS THE FIX ---
+      // Reset the manually-entered fields.
+      // The weather data in 'prev' will be kept.
+      setFormData(prev => ({
+        ...prev,
+        ph: '',
+        soilName: ''
+      }));
+      // ----------------------
       
       router.replace({ 
         pathname: '/result', 
         params: { prediction: JSON.stringify(newPrediction) } 
       });
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      Alert.alert('Prediction Failed', 'An error occurred. Please try again.');
+      Alert.alert('Prediction Failed', err.message || 'An error occurred. Please try again.');
     }
   };
 
-  // Helper for placeholders
+  // Helper for placeholders (Unchanged)
   const getPlaceholder = (key: string) => {
     const field = inputFields.find(f => f.key === key);
     if (isFetchingWeather && (key === 'temperature' || key === 'humidity' || key === 'rainfall')) {
@@ -171,7 +136,7 @@ export default function PredictScreen() {
             <Text style={styles.subtitle}>Enter soil data to get a prediction.</Text>
         </View>
 
-        {/* --- Render Input Fields --- */}
+        {/* --- Render Input Fields (Unchanged) --- */}
         {inputFields.map(({ key, label, unit, icon: Icon }) => {
             const isWeatherField = key === 'temperature' || key === 'humidity' || key === 'rainfall';
             const isEditable = !(isFetchingWeather && isWeatherField);
@@ -195,30 +160,7 @@ export default function PredictScreen() {
             )
         })}
 
-        {/* --- NEW Image Picker UI --- */}
-        <View style={styles.inputGroup}>
-            <Text style={styles.label}>Soil Image (Optional)</Text>
-            {soilImage ? (
-                <View style={styles.imagePreviewContainer}>
-                    <Image source={{ uri: soilImage }} style={styles.imagePreview} />
-                    <TouchableOpacity onPress={() => setSoilImage(null)} style={styles.removeImageButton}>
-                        <X size={18} color="#fff" />
-                    </TouchableOpacity>
-                </View>
-            ) : (
-                <View style={styles.imageButtonContainer}>
-                    <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
-                        <Camera size={20} color="#166534" />
-                        <Text style={styles.imageButtonText}>Take Photo</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-                        <ImageIcon size={20} color="#166534" />
-                        <Text style={styles.imageButtonText}>From Gallery</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-        </View>
-
+        {/* --- Image Picker UI was already removed --- */}
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -241,7 +183,7 @@ export default function PredictScreen() {
   );
 }
 
-// --- UPDATED STYLES ---
+// --- Styles (Unchanged) ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -296,51 +238,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1f2937',
   },
-  // --- NEW IMAGE STYLES ---
-  imageButtonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  imageButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    height: 50,
-  },
-  imageButtonText: {
-    color: '#166534',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  imagePreviewContainer: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    backgroundColor: '#e5e7eb',
-  },
-  imagePreview: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // --- ----------------- ---
   errorText: {
     color: '#ef4444',
     textAlign: 'center',
