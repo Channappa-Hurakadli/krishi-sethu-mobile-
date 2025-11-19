@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsFetchingWeather(true);
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
+<<<<<<< HEAD
       if (status !== 'granted') { Alert.alert('Permission Denied', '...'); setIsFetchingWeather(false); return; }
       let loc = await Location.getCurrentPositionAsync({}); setLocation(loc.coords);
       const API_KEY = 'bdcc754e794c6939b366dbdb9eb8deb9'; // Your key
@@ -117,6 +118,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setWeatherData({ temperature: data.main.temp, humidity: data.main.humidity, rainfall: data.rain ? data.rain['1h'] || 0 : 0, locationName: data.name || 'Unknown'});
     } catch (error) { console.error(error); }
     finally { setIsFetchingWeather(false); }
+=======
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Please enable location access in settings.');
+        setIsFetchingWeather(false);
+        return;
+      }
+      let locationResult = await Location.getCurrentPositionAsync({});
+      setLocation(locationResult.coords);
+      // ---- YOUR API KEY IS HERE ----
+      const API_KEY = 'WEATHER_API_KEY';
+      console.log("Location:", locationResult.coords.latitude, locationResult.coords.longitude);
+
+      
+
+      // --- BUG FIX: I REMOVED THE FAULTY IF STATEMENT ---
+      // We will now directly try to fetch.
+      
+      const fetchURL = `https://api.openweathermap.org/data/2.5/weather?lat=${locationResult.coords.latitude}&lon=${locationResult.coords.longitude}&appid=${API_KEY}&units=metric`;
+      const response = await fetch(fetchURL);
+      if (!response.ok) throw new Error('Failed to fetch weather data.');
+      const data = await response.json();
+      const fetchedWeather: WeatherData = {
+        temperature: data.main.temp,
+        humidity: data.main.humidity,
+        rainfall: data.rain ? data.rain['1h'] || 0 : 0, 
+        locationName: data.name || 'Unknown Location'
+      };
+      setWeatherData(fetchedWeather);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsFetchingWeather(false);
+    }
+>>>>>>> f256e199e6e958462cca35311a121a2465741a2b
   };
   
   // getHistory
