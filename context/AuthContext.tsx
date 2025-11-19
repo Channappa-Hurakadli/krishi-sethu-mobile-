@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // --- v VERY IMPORTANT v ---
 // This is the URL of your backend.
 // Replace 'YOUR_BACKEND_IP' with your computer's local IP address.
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://krishiapp-node.onrender.com';
 // --- ^ VERY IMPORTANT ^ ---
 
 // --- INTERFACES ---
